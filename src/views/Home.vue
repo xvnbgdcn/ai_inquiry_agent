@@ -40,6 +40,10 @@
         </div>
       </div>
     </div>
+
+    <div class="nav-links">
+      <router-link to="/login" class="nav-link">Login Demo →</router-link>
+    </div>
   </div>
 </template>
 
@@ -181,5 +185,27 @@ function startCustomConsultation() {
 .btn-start:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.nav-links {
+  text-align: center;
+  padding: 16px 0;
+}
+
+.nav-link {
+  display: inline-block;
+  padding: 8px 20px;
+  background: #1A1A2E;
+  color: #fff;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.nav-link:hover {
+  transform: scale(1.04);
+  box-shadow: 0 6px 20px rgba(26, 26, 46, 0.3);
 }
 </style>
