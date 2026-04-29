@@ -3,6 +3,7 @@
     <div v-if="!isUser" class="avatar">🩺</div>
     <div class="bubble" :class="{ 'bubble-user': isUser, 'bubble-ai': !isUser }">
       <div class="message-content" v-html="renderedContent"></div>
+      <span v-if="streaming" class="cursor-blink">|</span>
     </div>
     <div v-if="isUser" class="avatar user-avatar">👤</div>
   </div>
@@ -15,6 +16,10 @@ const props = defineProps({
   message: {
     type: Object,
     required: true
+  },
+  streaming: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -88,5 +93,16 @@ const renderedContent = computed(() => {
 
 .message-content {
   white-space: pre-wrap;
+}
+
+.cursor-blink {
+  color: var(--primary);
+  font-weight: 700;
+  animation: blink 0.8s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
 </style>

@@ -46,7 +46,7 @@ app.post('/api/chat', async (req, res) => {
         ],
         temperature: 0.7,
         max_tokens: 2000,
-        stream: false
+        stream: true
       })
     })
 
@@ -55,13 +55,28 @@ app.post('/api/chat', async (req, res) => {
       return res.status(response.status).json({ error: err })
     }
 
-    const data = await response.json()
-    const reply = data.choices?.[0]?.message?.content || '抱歉，我暂时无法回答，请稍后再试。'
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.setHeader('X-Accel-Buffering', 'no')
 
-    res.json({ reply })
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      res.write(decoder.decode(value, { stream: true }))
+    }
+
+    res.end()
   } catch (err) {
     console.error('API 请求失败:', err)
-    res.status(500).json({ error: '服务器请求失败，请检查网络连接' })
+    if (!res.headersSent) {
+      res.status(500).json({ error: '服务器请求失败，请检查网络连接' })
+    } else {
+      res.end()
+    }
   }
 })
 

@@ -19,7 +19,7 @@
 
     <!-- Messages -->
     <div ref="msgContainer" class="chat-messages">
-      <div v-if="messages.length === 0 && !loading" class="empty-state">
+      <div v-if="messages.length === 0 && !streaming" class="empty-state">
         <div class="empty-icon">💬</div>
         <p>请描述你的症状，我将为你提供健康咨询</p>
         <div class="empty-hints">
@@ -31,12 +31,8 @@
         v-for="(msg, idx) in messages"
         :key="idx"
         :message="msg"
+        :streaming="streaming && idx === messages.length - 1 && msg.role === 'assistant'"
       />
-
-      <div v-if="loading" class="typing-indicator">
-        <span></span><span></span><span></span>
-        <span class="typing-text">AI 正在分析...</span>
-      </div>
 
       <div v-if="errorMsg" class="error-banner">
         <span>{{ errorMsg }}</span>
@@ -46,7 +42,7 @@
 
     <!-- Input -->
     <ChatInput
-      :disabled="loading"
+      :disabled="streaming"
       @send="sendMessage"
     />
   </div>
@@ -57,11 +53,11 @@ import { ref, nextTick, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import ChatMessage from '../components/ChatMessage.vue'
 import ChatInput from '../components/ChatInput.vue'
-import { sendMessage as apiSend } from '../api/deepseek.js'
+import { sendMessageStream } from '../api/deepseek.js'
 
 const route = useRoute()
 const messages = ref([])
-const loading = ref(false)
+const streaming = ref(false)
 const errorMsg = ref('')
 const msgContainer = ref(null)
 
@@ -82,7 +78,6 @@ onMounted(() => {
 })
 
 watch(messages, () => {
-  saveHistory()
   nextTick(() => scrollToBottom())
 }, { deep: true })
 
@@ -105,32 +100,43 @@ function scrollToBottom() {
 }
 
 async function sendMessage(text) {
-  if (!text.trim() || loading.value) return
+  if (!text.trim() || streaming.value) return
 
   errorMsg.value = ''
-
-  // Build conversation context (last 10 rounds to avoid token overflow)
   messages.value.push({ role: 'user', content: text.trim() })
-  const recent = messages.value.slice(-20)
 
-  loading.value = true
+  // Create empty assistant message to stream into
+  messages.value.push({ role: 'assistant', content: '' })
+  const assistantMsg = messages.value[messages.value.length - 1]
+  const recent = messages.value.slice(-21) // includes user msg + empty assistant, remove assistant for API
+  const apiMessages = recent.filter(m => m.content !== '').slice(-20)
+
+  streaming.value = true
   try {
-    const reply = await apiSend(recent)
-    messages.value.push({ role: 'assistant', content: reply })
+    for await (const chunk of sendMessageStream(apiMessages)) {
+      assistantMsg.content += chunk
+    }
   } catch (e) {
     errorMsg.value = e.message || '请求失败，请检查网络后重试'
+    // Remove empty/partial assistant message on error
+    if (!assistantMsg.content) {
+      messages.value.pop()
+    }
   } finally {
-    loading.value = false
+    streaming.value = false
+    saveHistory()
   }
 }
 
 function retryLastMessage() {
-  const lastUser = [...messages.value].reverse().find(m => m.role === 'user')
-  if (lastUser) {
-    messages.value = messages.value.slice(0, -1) // remove failed assistant msg if any
-    errorMsg.value = ''
-    sendMessage(lastUser.content)
+  const userMsgs = [...messages.value].reverse().filter(m => m.role === 'user')
+  if (userMsgs.length === 0) return
+  // Remove last assistant message (partial or failed)
+  if (messages.value[messages.value.length - 1]?.role === 'assistant') {
+    messages.value.pop()
   }
+  errorMsg.value = ''
+  sendMessage(userMsgs[0].content)
 }
 
 function clearChat() {
@@ -147,7 +153,6 @@ function clearChat() {
   flex-direction: column;
 }
 
-/* Header */
 .chat-header {
   display: flex;
   align-items: center;
@@ -211,7 +216,6 @@ function clearChat() {
   justify-content: center;
 }
 
-/* Messages */
 .chat-messages {
   flex: 1;
   overflow-y: auto;
@@ -260,37 +264,6 @@ function clearChat() {
   border-color: var(--primary);
 }
 
-/* Typing indicator */
-.typing-indicator {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 12px 16px;
-}
-
-.typing-indicator span:not(.typing-text) {
-  width: 8px;
-  height: 8px;
-  background: var(--text-light);
-  border-radius: 50%;
-  animation: bounce 1.4s infinite ease-in-out both;
-}
-
-.typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-.typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
-
-.typing-text {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin-left: 4px;
-}
-
-@keyframes bounce {
-  0%, 80%, 100% { transform: scale(0); }
-  40% { transform: scale(1); }
-}
-
-/* Error banner */
 .error-banner {
   display: flex;
   align-items: center;

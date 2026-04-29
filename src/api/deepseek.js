@@ -1,4 +1,4 @@
-export async function sendMessage(messages) {
+export async function* sendMessageStream(messages) {
   const res = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -10,6 +10,27 @@ export async function sendMessage(messages) {
     throw new Error(err.error || `请求失败 (${res.status})`)
   }
 
-  const data = await res.json()
-  return data.reply
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || ''
+
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue
+      const payload = line.slice(6)
+      if (payload === '[DONE]') return
+      try {
+        const json = JSON.parse(payload)
+        const content = json.choices?.[0]?.delta?.content
+        if (content) yield content
+      } catch {}
+    }
+  }
 }
