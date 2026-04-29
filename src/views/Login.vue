@@ -553,59 +553,11 @@ onUnmounted(() => {
   text-decoration: underline;
 }
 
-/* ===== Responsive ===== */
-@media (max-width: 768px) {
-  .login-page {
-    flex-direction: column;
-  }
+</style>
 
-  .left-panel {
-    flex: 0 0 auto;
-    height: 260px;
-    padding: 20px 0;
-  }
-
-  .svg-wrap {
-    max-width: 300px;
-  }
-
-  .right-panel {
-    flex: 1;
-    padding: 28px 24px;
-    align-items: flex-start;
-  }
-
-  .form-wrap {
-    max-width: 100%;
-  }
-
-  .form-title {
-    font-size: 26px;
-  }
-
-  .field-input {
-    height: 46px;
-    font-size: 16px;
-  }
-
-  .btn-login {
-    height: 48px;
-  }
-}
-
-@media (max-width: 480px) {
-  .left-panel {
-    height: 200px;
-    padding: 10px 0;
-  }
-  .svg-wrap {
-    max-width: 240px;
-  }
-  .right-panel {
-    padding: 20px 16px;
-  }
-  .form-title {
-    font-size: 22px;
-  }
+<style>
+/* Override H5 mobile constraint for PC login page */
+#app {
+  max-width: none;
 }
 </style>
